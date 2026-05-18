@@ -1,0 +1,52 @@
+name: crawl-hunan-low-altitude
+
+on:
+  workflow_dispatch:
+    inputs:
+      max_results:
+        description: "Maximum candidate links to process (0 means unlimited)"
+        required: true
+        default: "20"
+      max_pages:
+        description: "Maximum search pages/rounds (0 means unlimited)"
+        required: true
+        default: "0"
+      delay:
+        description: "Delay between requests in seconds (must be >= 1.2)"
+        required: true
+        default: "1.2"
+      output_name:
+        description: "Artifact name for output directory"
+        required: true
+        default: "hunan-low-altitude-output-test"
+
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Run crawler
+        run: python src/crawl_hunan_low_altitude.py --headless --delay "${{ github.event.inputs.delay }}" --max-pages "${{ github.event.inputs.max_pages }}" --max-results "${{ github.event.inputs.max_results }}" --output-dir output
+
+      - name: Verify outputs
+        run: python scripts/verify_outputs.py output
+
+      - name: Upload output artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.event.inputs.output_name }}
+          path: output/
+          if-no-files-found: error
